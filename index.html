@@ -1,0 +1,1866 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
+  <title>KETCHUP DODGER — Retro Arcade Runner</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Press+Start+2P&family=Rubik:ital,wght@0,700;0,900;1,900&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --neon-pink: #ff2a85;
+      --neon-purple: #9d00ff;
+      --neon-cyan: #00f0ff;
+      --neon-yellow: #ffe600;
+      --ketchup-red: #e61919;
+      --dark-bg: #11071f;
+    }
+
+    * {
+      box-sizing: border-box;
+      user-select: none;
+      -webkit-user-select: none;
+      touch-action: manipulation;
+    }
+
+    html, body {
+      margin: 0;
+      padding: 0;
+      width: 100%;
+      height: 100%;
+      background: radial-gradient(circle at 50% 25%, #2b0f4c 0%, #120621 65%, #080210 100%);
+      color: #fff;
+      font-family: 'Rubik', sans-serif;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+    }
+
+    /* CRT Scanline & Vignette Overlay */
+    .crt-overlay {
+      position: fixed;
+      inset: 0;
+      pointer-events: none;
+      z-index: 50;
+      background:
+        linear-gradient(rgba(18, 16, 16, 0) 50%, rgba(0, 0, 0, 0.22) 50%),
+        radial-gradient(circle at center, transparent 62%, rgba(0, 0, 0, 0.55) 100%);
+      background-size: 100% 4px, 100% 100%;
+    }
+
+    /* Top Arcade Header */
+    .arcade-header {
+      width: 100%;
+      max-width: 1040px;
+      padding: 10px 16px 6px;
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 12px;
+      z-index: 10;
+    }
+
+    .game-title {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(14px, 2.5vw, 24px);
+      letter-spacing: 1px;
+      background: linear-gradient(180deg, #fff 0%, #ffe600 48%, #ff2a85 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      filter: drop-shadow(0 0 10px rgba(255, 42, 133, 0.7));
+      margin: 0;
+      white-space: nowrap;
+    }
+
+    .hud-pills {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      flex-wrap: wrap;
+      justify-content: flex-end;
+    }
+
+    .hud-box {
+      background: rgba(20, 8, 38, 0.85);
+      border: 2px solid var(--neon-cyan);
+      box-shadow: 0 0 12px rgba(0, 240, 255, 0.3), inset 0 0 8px rgba(0, 240, 255, 0.15);
+      border-radius: 10px;
+      padding: 6px 12px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(9px, 1.4vw, 12px);
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .hud-box.pink {
+      border-color: var(--neon-pink);
+      box-shadow: 0 0 12px rgba(255, 42, 133, 0.35), inset 0 0 8px rgba(255, 42, 133, 0.15);
+    }
+
+    .hud-box.lives-box {
+      border-color: #ff4747;
+      box-shadow: 0 0 12px rgba(255, 71, 71, 0.35), inset 0 0 8px rgba(255, 71, 71, 0.15);
+    }
+
+    .lives-hearts {
+      display: inline-flex;
+      align-items: center;
+      gap: 4px;
+      font-size: 1.15em;
+      letter-spacing: 1px;
+    }
+
+    .heart-icon {
+      display: inline-block;
+      transition: transform 0.2s ease, opacity 0.2s ease, filter 0.2s ease;
+    }
+
+    .heart-icon.lost {
+      opacity: 0.25;
+      filter: grayscale(100%);
+      transform: scale(0.85);
+    }
+
+    .hud-label {
+      color: #b794f4;
+      font-size: 0.8em;
+    }
+
+    .hud-val {
+      color: #fff;
+    }
+
+    .mute-btn {
+      background: rgba(20, 8, 38, 0.9);
+      border: 2px solid var(--neon-yellow);
+      box-shadow: 0 0 10px rgba(255, 230, 0, 0.25);
+      border-radius: 10px;
+      padding: 6px 10px;
+      color: #ffe600;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(9px, 1.3vw, 11px);
+      cursor: pointer;
+      transition: transform 0.08s ease, filter 0.15s ease;
+    }
+
+    .mute-btn:hover {
+      filter: brightness(1.15);
+    }
+
+    .mute-btn.muted {
+      border-color: #718096;
+      color: #a0aec0;
+      box-shadow: none;
+    }
+
+    /* Main Cabinet Frame */
+    .cabinet-wrap {
+      position: relative;
+      width: 96vw;
+      max-width: 1040px;
+      height: min(64vh, 520px);
+      min-height: 300px;
+      border-radius: 18px;
+      border: 4px solid var(--neon-pink);
+      box-shadow:
+        0 0 28px rgba(255, 42, 133, 0.55),
+        0 0 60px rgba(157, 0, 255, 0.35),
+        inset 0 0 20px rgba(0, 0, 0, 0.8);
+      background: #140726;
+      overflow: hidden;
+    }
+
+    canvas {
+      display: block;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Overlay Screens (Start & Game Over) */
+    .screen-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(14, 5, 28, 0.82);
+      backdrop-filter: blur(4px);
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      padding: 20px;
+      z-index: 20;
+      transition: opacity 0.25s ease;
+    }
+
+    .screen-overlay.hidden {
+      opacity: 0;
+      pointer-events: none;
+    }
+
+    .hero-badge {
+      position: relative;
+      width: 108px;
+      height: 108px;
+      border-radius: 50%;
+      border: 4px solid var(--neon-cyan);
+      box-shadow: 0 0 24px rgba(0, 240, 255, 0.65);
+      overflow: hidden;
+      margin-bottom: 12px;
+      background: #2c0b4e;
+      animation: floatBob 2.2s ease-in-out infinite;
+    }
+
+    .hero-badge.splattered {
+      border-color: var(--ketchup-red);
+      box-shadow: 0 0 28px rgba(230, 25, 25, 0.85);
+      animation: shakeHead 0.45s ease-in-out;
+    }
+
+    .hero-badge img {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      object-position: center 22%;
+      transform: scale(1.18);
+    }
+
+    .splat-svg-overlay {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+
+    @keyframes floatBob {
+      0%, 100% { transform: translateY(0) rotate(-2deg); }
+      50% { transform: translateY(-7px) rotate(2deg); }
+    }
+
+    @keyframes shakeHead {
+      0%, 100% { transform: rotate(0deg); }
+      20% { transform: rotate(-10deg); }
+      40% { transform: rotate(10deg); }
+      60% { transform: rotate(-7deg); }
+      80% { transform: rotate(7deg); }
+    }
+
+    .overlay-heading {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(18px, 3.2vw, 32px);
+      color: var(--neon-yellow);
+      text-shadow: 0 4px 0 #b8145a, 0 0 18px rgba(255, 230, 0, 0.6);
+      margin: 0 0 10px;
+      line-height: 1.3;
+    }
+
+    .overlay-heading.danger {
+      color: #ff4747;
+      text-shadow: 0 4px 0 #660000, 0 0 20px rgba(255, 40, 40, 0.8);
+    }
+
+    .overlay-sub {
+      max-width: 560px;
+      font-size: clamp(13px, 1.8vw, 16px);
+      color: #e9d8fd;
+      line-height: 1.5;
+      margin: 0 0 16px;
+    }
+
+    .legend-grid {
+      display: flex;
+      flex-wrap: wrap;
+      justify-content: center;
+      gap: 10px;
+      margin-bottom: 18px;
+      max-width: 680px;
+    }
+
+    .legend-chip {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.22);
+      border-radius: 999px;
+      padding: 5px 12px;
+      font-size: 12px;
+      font-weight: 700;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .legend-chip.bad {
+      border-color: rgba(255, 70, 70, 0.65);
+      background: rgba(230, 25, 25, 0.18);
+      color: #ffb3b3;
+    }
+
+    .legend-chip.good {
+      border-color: rgba(0, 240, 255, 0.6);
+      background: rgba(0, 240, 255, 0.14);
+      color: #b3faff;
+    }
+
+    /* Retro Arcade Buttons */
+    .arcade-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(12px, 1.8vw, 16px);
+      color: #fff;
+      background: linear-gradient(180deg, #ff3b93 0%, #c80064 100%);
+      border: 3px solid #fff;
+      border-radius: 14px;
+      padding: 14px 28px;
+      cursor: pointer;
+      box-shadow:
+        0 6px 0 #690034,
+        0 10px 24px rgba(255, 42, 133, 0.65);
+      transition: transform 0.08s ease, box-shadow 0.08s ease, filter 0.15s ease;
+      text-transform: uppercase;
+    }
+
+    .arcade-btn:hover {
+      filter: brightness(1.12);
+      transform: translateY(-2px);
+      box-shadow:
+        0 8px 0 #690034,
+        0 14px 28px rgba(255, 42, 133, 0.85);
+    }
+
+    .arcade-btn:active {
+      transform: translateY(4px);
+      box-shadow:
+        0 2px 0 #690034,
+        0 4px 12px rgba(255, 42, 133, 0.5);
+    }
+
+    /* Bottom Controls Bar (Outside Game Canvas) */
+    .controls-bar {
+      width: 100%;
+      max-width: 1040px;
+      padding: 12px 16px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 14px;
+      flex-wrap: wrap;
+      z-index: 10;
+    }
+
+    .ctrl-btn {
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(11px, 1.5vw, 13px);
+      color: #fff;
+      background: linear-gradient(180deg, #2d1654 0%, #190933 100%);
+      border: 2px solid var(--neon-cyan);
+      border-radius: 12px;
+      padding: 12px 18px;
+      cursor: pointer;
+      box-shadow: 0 4px 0 #092b36, 0 0 12px rgba(0, 240, 255, 0.35);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+      transition: transform 0.07s ease, box-shadow 0.07s ease;
+    }
+
+    .ctrl-btn.duck-btn {
+      border-color: var(--neon-yellow);
+      box-shadow: 0 4px 0 #4d4500, 0 0 12px rgba(255, 230, 0, 0.35);
+    }
+
+    .ctrl-btn:active, .ctrl-btn.pressed {
+      transform: translateY(3px);
+      box-shadow: 0 1px 0 #092b36;
+    }
+
+    .stats-row {
+      display: flex;
+      gap: 18px;
+      justify-content: center;
+      margin-bottom: 18px;
+      font-family: 'Press Start 2P', monospace;
+      font-size: clamp(11px, 1.6vw, 14px);
+    }
+
+    .stat-card {
+      background: rgba(0, 0, 0, 0.45);
+      border: 2px solid var(--neon-cyan);
+      border-radius: 12px;
+      padding: 10px 16px;
+    }
+
+    .stat-card span {
+      display: block;
+      color: var(--neon-yellow);
+      margin-top: 6px;
+      font-size: 1.15em;
+    }
+  </style>
+</head>
+<body>
+  <div class="crt-overlay"></div>
+
+  <!-- Top Arcade HUD -->
+  <header class="arcade-header">
+    <h1 class="game-title">🍅 KETCHUP DODGER</h1>
+    <div class="hud-pills">
+      <div class="hud-box lives-box" aria-label="Lives Remaining">
+        <span class="hud-label">LIVES</span>
+        <span class="lives-hearts" id="livesDisplay">
+          <span class="heart-icon">❤️</span>
+          <span class="heart-icon">❤️</span>
+          <span class="heart-icon">❤️</span>
+        </span>
+      </div>
+      <div class="hud-box" id="shieldHud" style="display:none; border-color:#48bb78;">
+        <span>🧻</span><span class="hud-val" style="color:#68d391;">NAPKIN SHIELD</span>
+      </div>
+      <div class="hud-box pink">
+        <span class="hud-label">COMBO</span>
+        <span class="hud-val" id="comboDisplay">x1</span>
+      </div>
+      <div class="hud-box">
+        <span class="hud-label">SCORE</span>
+        <span class="hud-val" id="scoreDisplay">00000</span>
+      </div>
+      <div class="hud-box">
+        <span class="hud-label">BEST</span>
+        <span class="hud-val" id="bestDisplay">00000</span>
+      </div>
+      <button class="mute-btn" id="muteBtn" aria-label="Toggle Sound Effects" title="Mute / Unmute (M)">🔊 SFX: ON</button>
+    </div>
+  </header>
+
+  <!-- Main Arcade Screen -->
+  <main class="cabinet-wrap" id="cabinet">
+    <canvas id="gameCanvas"></canvas>
+
+    <!-- Hidden Source Image for Canvas Face Rendering -->
+    <img id="heroSourceImg" src="Screenshot 2026-09-28 161057.png" alt="Hero" style="display:none;" />
+
+    <!-- Start Overlay -->
+    <section class="screen-overlay" id="startScreen">
+      <div class="hero-badge">
+        <img id="startBadgeImg" src="Screenshot 2026-09-28 161057.png" alt="Player Portrait" />
+      </div>
+      <h2 class="overlay-heading">NO KETCHUP ALLOWED!</h2>
+      <p class="overlay-sub">
+        Help our bearded hero sprint through the neon arcade and dodge his mortal enemy:
+        <strong>TOMATO KETCHUP</strong>! Jump, double-jump, and slide to survive!
+      </p>
+      <div class="legend-grid">
+        <div class="legend-chip bad">🍾 Ketchup Bottles (Jump!)</div>
+        <div class="legend-chip bad">🟥 Flying Packets (Duck!)</div>
+        <div class="legend-chip bad">💦 Splat Lobbers (Watch Arc!)</div>
+        <div class="legend-chip good">❤️ 3 Lives per Run</div>
+        <div class="legend-chip good">🍟 Plain Fries &amp; Mustard (+Pts)</div>
+        <div class="legend-chip good">🧻 Napkin Roll (1-Hit Shield)</div>
+      </div>
+      <button class="arcade-btn" id="startBtn">▶ INSERT COIN / START</button>
+    </section>
+
+    <!-- Game Over Overlay -->
+    <section class="screen-overlay hidden" id="gameOverScreen">
+      <div class="hero-badge splattered">
+        <img id="gameOverBadgeImg" src="Screenshot 2026-09-28 161057.png" alt="Splattered Portrait" />
+        <!-- Cartoon Ketchup Splatters over his face -->
+        <svg class="splat-svg-overlay" viewBox="0 0 100 100">
+          <path d="M22,28 C14,22 18,12 28,16 C35,10 46,16 42,26 C49,31 44,43 34,39 C27,46 16,40 22,28 Z" fill="#e61919" opacity="0.92"/>
+          <circle cx="15" cy="18" r="3.5" fill="#ff3b3b"/>
+          <circle cx="48" cy="14" r="2.8" fill="#e61919"/>
+          <path d="M62,58 C54,50 62,38 72,44 C82,39 91,50 84,60 C90,70 78,79 70,72 C61,78 52,67 62,58 Z" fill="#d91414" opacity="0.93"/>
+          <path d="M70,72 L70,89 C70,92 74,92 74,89 L74,71 Z" fill="#d91414"/>
+          <circle cx="88" cy="42" r="3" fill="#ff3b3b"/>
+          <circle cx="34" cy="74" r="6" fill="#e61919" opacity="0.88"/>
+        </svg>
+      </div>
+      <h2 class="overlay-heading danger" id="gameOverReason">KETCHUPPED!! EW!!</h2>
+      <p class="overlay-sub" id="gameOverQuote">"NOT ON MY FRIES! NOT ON MY SHIRT! GET IT OFF!!"</p>
+      <div class="stats-row">
+        <div class="stat-card">FINAL SCORE<span id="finalScore">0</span></div>
+        <div class="stat-card">HIGH SCORE<span id="finalBest">0</span></div>
+      </div>
+      <button class="arcade-btn" id="restartBtn">↻ DODGE AGAIN</button>
+    </section>
+  </main>
+
+  <!-- Touch & Click Arcade Buttons Outside Canvas -->
+  <footer class="controls-bar">
+    <button class="ctrl-btn" id="btnJump" aria-label="Jump">⬆ JUMP / DOUBLE JUMP (SPACE / W)</button>
+    <button class="ctrl-btn duck-btn" id="btnDuck" aria-label="Duck or Slide">⬇ SLIDE / FAST FALL (S / DOWN)</button>
+  </footer>
+
+  <script>
+    /**
+     * KETCHUP DODGER — Single-File Retro Synthwave Endless Runner
+     * Features cropped face portrait rendering, procedural cartoon body animation,
+     * 3-lives arcade system, and responsive touch/keyboard controls.
+     */
+    (function () {
+      const canvas = document.getElementById('gameCanvas');
+      const ctx = canvas.getContext('2d');
+
+      // DOM References
+      const startScreen = document.getElementById('startScreen');
+      const gameOverScreen = document.getElementById('gameOverScreen');
+      const startBtn = document.getElementById('startBtn');
+      const restartBtn = document.getElementById('restartBtn');
+      const btnJump = document.getElementById('btnJump');
+      const btnDuck = document.getElementById('btnDuck');
+      const livesDisplay = document.getElementById('livesDisplay');
+      const scoreDisplay = document.getElementById('scoreDisplay');
+      const bestDisplay = document.getElementById('bestDisplay');
+      const comboDisplay = document.getElementById('comboDisplay');
+      const shieldHud = document.getElementById('shieldHud');
+      const finalScoreEl = document.getElementById('finalScore');
+      const finalBestEl = document.getElementById('finalBest');
+      const gameOverReasonEl = document.getElementById('gameOverReason');
+      const gameOverQuoteEl = document.getElementById('gameOverQuote');
+      const muteBtn = document.getElementById('muteBtn');
+
+      // ==========================================
+      // STRICT FINITE RETRO ARCADE SFX ENGINE
+      // ==========================================
+      let audioCtx = null;
+      let isMuted = false;
+      const activeAudioNodes = new Set();
+
+      function ensureAudio() {
+        if (isMuted) return null;
+        if (!audioCtx) {
+          const AudioContextClass = window.AudioContext || window.webkitAudioContext;
+          if (!AudioContextClass) return null;
+          audioCtx = new AudioContextClass();
+        }
+        if (audioCtx.state === 'suspended') {
+          audioCtx.resume().catch(() => {});
+        }
+        return audioCtx;
+      }
+
+      function killAllAudio() {
+        for (const entry of activeAudioNodes) {
+          const [osc, gain] = entry;
+          try {
+            gain.gain.cancelScheduledValues(0);
+            gain.gain.value = 0;
+          } catch (_) {}
+          try {
+            osc.stop(0);
+          } catch (_) {}
+          try {
+            osc.disconnect();
+            gain.disconnect();
+          } catch (_) {}
+        }
+        activeAudioNodes.clear();
+      }
+
+      // Plays a strictly bounded one-shot tone (max 0.35s) with guaranteed stop
+      function playTone({ type = 'square', startFreq, endFreq = null, midFreq = null, delay = 0, duration = 0.12, volume = 0.12 }) {
+        if (isMuted) return;
+        const ctx = ensureAudio();
+        if (!ctx) return;
+
+        const safeDuration = Math.min(0.35, Math.max(0.02, duration));
+        const now = ctx.currentTime + Math.max(0, delay);
+        const stopAt = now + safeDuration;
+
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+        const entry = [osc, gain];
+        activeAudioNodes.add(entry);
+
+        osc.type = type;
+        osc.frequency.setValueAtTime(startFreq, now);
+        if (midFreq !== null) {
+          osc.frequency.exponentialRampToValueAtTime(Math.max(20, midFreq), now + safeDuration * 0.5);
+        }
+        if (endFreq !== null) {
+          osc.frequency.exponentialRampToValueAtTime(Math.max(20, endFreq), stopAt);
+        }
+
+        gain.gain.setValueAtTime(0.0001, now);
+        gain.gain.linearRampToValueAtTime(volume, now + 0.01);
+        gain.gain.exponentialRampToValueAtTime(0.0001, stopAt);
+
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+
+        osc.onended = () => {
+          activeAudioNodes.delete(entry);
+          try { osc.disconnect(); } catch (_) {}
+          try { gain.disconnect(); } catch (_) {}
+        };
+
+        osc.start(now);
+        osc.stop(stopAt + 0.005);
+      }
+
+      const SFX = {
+        jump() {
+          if (gameState !== 'PLAYING') return;
+          playTone({ type: 'square', startFreq: 180, endFreq: 480, duration: 0.11, volume: 0.11 });
+        },
+        doubleJump() {
+          if (gameState !== 'PLAYING') return;
+          playTone({ type: 'triangle', startFreq: 320, endFreq: 720, duration: 0.12, volume: 0.14 });
+        },
+        slide() {
+          if (gameState !== 'PLAYING') return;
+          playTone({ type: 'sawtooth', startFreq: 260, endFreq: 95, duration: 0.10, volume: 0.08 });
+        },
+        collectSnack() {
+          if (gameState !== 'PLAYING') return;
+          playTone({ type: 'square', startFreq: 987.77, duration: 0.065, volume: 0.10 }); // B5
+          playTone({ type: 'square', startFreq: 1318.51, delay: 0.06, duration: 0.08, volume: 0.10 }); // E6
+        },
+        collectShield() {
+          if (gameState !== 'PLAYING') return;
+          playTone({ type: 'triangle', startFreq: 523.25, duration: 0.07, volume: 0.13 }); // C5
+          playTone({ type: 'triangle', startFreq: 659.25, delay: 0.065, duration: 0.07, volume: 0.13 }); // E5
+          playTone({ type: 'triangle', startFreq: 783.99, delay: 0.13, duration: 0.09, volume: 0.13 }); // G5
+        },
+        shieldBlock() {
+          if (gameState !== 'PLAYING') return;
+          playTone({ type: 'square', startFreq: 520, midFreq: 240, endFreq: 620, duration: 0.16, volume: 0.13 });
+        },
+        loseLife() {
+          if (gameState !== 'PLAYING') return;
+          playTone({ type: 'sawtooth', startFreq: 160, endFreq: 65, duration: 0.22, volume: 0.15 });
+        },
+        gameOver() {
+          killAllAudio();
+          // Short 4-note descending arcade jingle (total 0.35s)
+          playTone({ type: 'square', startFreq: 329.63, duration: 0.08, volume: 0.12 }); // E4
+          playTone({ type: 'square', startFreq: 293.66, delay: 0.085, duration: 0.08, volume: 0.12 }); // D4
+          playTone({ type: 'square', startFreq: 261.63, delay: 0.17, duration: 0.08, volume: 0.12 }); // C4
+          playTone({ type: 'sawtooth', startFreq: 196.00, endFreq: 146.83, delay: 0.255, duration: 0.095, volume: 0.13 }); // G3
+        }
+      };
+
+      function toggleMute() {
+        isMuted = !isMuted;
+        if (isMuted) {
+          killAllAudio();
+          muteBtn.textContent = '🔇 SFX: MUTED';
+          muteBtn.classList.add('muted');
+        } else {
+          ensureAudio();
+          muteBtn.textContent = '🔊 SFX: ON';
+          muteBtn.classList.remove('muted');
+        }
+      }
+
+      muteBtn.addEventListener('click', (e) => {
+        e.stopPropagation();
+        toggleMute();
+      });
+
+      document.addEventListener('visibilitychange', () => {
+        if (document.hidden) {
+          killAllAudio();
+        }
+      });
+
+      // Face Sprite Loader + Fallback Avatar Generator
+      const heroImg = document.getElementById('heroSourceImg');
+      let heroImgReady = false;
+      let fallbackCanvas = null;
+
+      function createFallbackAvatar() {
+        const c = document.createElement('canvas');
+        c.width = 160;
+        c.height = 160;
+        const g = c.getContext('2d');
+        // Purple neon glow background
+        const grad = g.createRadialGradient(80, 70, 15, 80, 80, 80);
+        grad.addColorStop(0, '#9d00ff');
+        grad.addColorStop(1, '#1e0638');
+        g.fillStyle = grad;
+        g.fillRect(0, 0, 160, 160);
+        // Head
+        g.fillStyle = '#f1b894';
+        g.beginPath();
+        g.ellipse(80, 84, 44, 54, 0, 0, Math.PI * 2);
+        g.fill();
+        // Salt & pepper hair
+        g.fillStyle = '#6c6a75';
+        g.beginPath();
+        g.ellipse(80, 42, 46, 26, 0, Math.PI, Math.PI * 2);
+        g.fill();
+        // Salt & pepper beard
+        g.fillStyle = '#4a4852';
+        g.beginPath();
+        g.arc(80, 92, 44, 0.1 * Math.PI, 0.9 * Math.PI);
+        g.fill();
+        g.fillStyle = '#b8b6c2';
+        g.beginPath();
+        g.arc(80, 96, 36, 0.2 * Math.PI, 0.8 * Math.PI);
+        g.fill();
+        // Eyes & brows
+        g.fillStyle = '#1f1512';
+        g.fillRect(54, 68, 18, 5);
+        g.fillRect(88, 68, 18, 5);
+        g.beginPath();
+        g.arc(63, 79, 4, 0, Math.PI * 2);
+        g.arc(97, 79, 4, 0, Math.PI * 2);
+        g.fill();
+        return c;
+      }
+
+      fallbackCanvas = createFallbackAvatar();
+
+      heroImg.onload = () => {
+        if (heroImg.naturalWidth > 0) {
+          heroImgReady = true;
+        }
+      };
+      heroImg.onerror = () => {
+        heroImgReady = false;
+        const fallbackDataUrl = fallbackCanvas.toDataURL();
+        document.getElementById('startBadgeImg').src = fallbackDataUrl;
+        document.getElementById('gameOverBadgeImg').src = fallbackDataUrl;
+      };
+      if (heroImg.complete && heroImg.naturalWidth > 0) {
+        heroImgReady = true;
+      }
+
+      // ==========================================
+      // GAME STATE & RESPONSIVE CANVAS SIZING
+      // ==========================================
+      let width = 960;
+      let height = 460;
+      let groundY = 380;
+
+      function resizeCanvas() {
+        const rect = canvas.parentElement.getBoundingClientRect();
+        const dpr = Math.min(window.devicePixelRatio || 1, 2);
+        canvas.width = Math.floor(rect.width * dpr);
+        canvas.height = Math.floor(rect.height * dpr);
+        ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+        width = rect.width;
+        height = rect.height;
+        groundY = height - Math.max(54, height * 0.15);
+        if (player) {
+          player.x = Math.max(85, width * 0.16);
+          if (!player.isJumping) {
+            player.y = groundY;
+          }
+        }
+      }
+
+      window.addEventListener('resize', resizeCanvas);
+
+      let gameState = 'START'; // START | PLAYING | GAMEOVER
+      let lives = 3;
+      const maxLives = 3;
+      let score = 0;
+      let highScore = parseInt(localStorage.getItem('ketchup_dodger_best') || '0', 10);
+      let combo = 1;
+      let comboTimer = 0;
+      let gameSpeed = 300; // Slower, welcoming starting speed (pixels per second)
+      let distanceTraveled = 0;
+      let shakeTime = 0;
+      let shakeIntensity = 0;
+      let lastTime = 0;
+
+      function updateLivesUI() {
+        const hearts = livesDisplay.querySelectorAll('.heart-icon');
+        hearts.forEach((heart, idx) => {
+          if (idx < lives) {
+            heart.classList.remove('lost');
+          } else {
+            heart.classList.add('lost');
+          }
+        });
+      }
+
+      bestDisplay.textContent = String(highScore).padStart(5, '0');
+      updateLivesUI();
+
+      // Entities
+      let obstacles = [];
+      let collectibles = [];
+      let particles = [];
+      let floatingTexts = [];
+      let bgBuildings = [];
+      let spawnTimer = 0;
+      let collectibleTimer = 1.4;
+
+      // Player Object
+      const player = {
+        x: 150,
+        y: 380,
+        vy: 0,
+        gravity: 1920,
+        jumpForce: -760,
+        doubleJumpForce: -680,
+        jumpsUsed: 0,
+        maxJumps: 2,
+        isJumping: false,
+        isDucking: false,
+        hasShield: false,
+        invulnTimer: 0,
+        runCycle: 0,
+        panicLevel: 0, // 0 to 1 based on nearest ketchup
+        splatSpots: [],
+
+        getHitbox() {
+          if (this.isDucking) {
+            return {
+              x: this.x - 24,
+              y: this.y - 42,
+              w: 54,
+              h: 40
+            };
+          }
+          return {
+            x: this.x - 16,
+            y: this.y - 92,
+            w: 34,
+            h: 90
+          };
+        },
+
+        jump() {
+          if (gameState !== 'PLAYING') return;
+          if (this.jumpsUsed < this.maxJumps) {
+            const isDouble = this.jumpsUsed === 1;
+            this.vy = isDouble ? this.doubleJumpForce : this.jumpForce;
+            this.isJumping = true;
+            this.isDucking = false;
+            this.jumpsUsed++;
+            if (isDouble) {
+              SFX.doubleJump();
+            } else {
+              SFX.jump();
+            }
+
+            // Spawn jump dust/neon ring particles
+            for (let i = 0; i < (isDouble ? 14 : 9); i++) {
+              particles.push({
+                x: this.x + (Math.random() - 0.5) * 26,
+                y: this.y - 4,
+                vx: (Math.random() - 0.5) * 180 - 60,
+                vy: (Math.random() - 0.5) * 90,
+                size: 4 + Math.random() * 4,
+                color: isDouble ? '#00f0ff' : '#ff2a85',
+                life: 0.35,
+                maxLife: 0.35
+              });
+            }
+          }
+        },
+
+        setDuck(ducking) {
+          if (gameState !== 'PLAYING') return;
+          if (ducking && !this.isDucking) {
+            SFX.slide();
+            // Fast-fall if airborne
+            if (this.isJumping && this.vy < 480) {
+              this.vy = 620;
+            }
+          }
+          this.isDucking = ducking;
+        },
+
+        update(dt) {
+          this.x = Math.max(85, width * 0.16);
+          if (this.invulnTimer > 0) this.invulnTimer -= dt;
+
+          // Vertical physics
+          if (this.isJumping || this.y < groundY) {
+            this.vy += this.gravity * dt;
+            this.y += this.vy * dt;
+            if (this.y >= groundY) {
+              this.y = groundY;
+              this.vy = 0;
+              this.isJumping = false;
+              this.jumpsUsed = 0;
+            }
+          } else {
+            this.y = groundY;
+          }
+
+          // Run limb cycle
+          const strideRate = this.isDucking ? 18 : (11 + (gameSpeed - 420) * 0.015);
+          this.runCycle += strideRate * dt;
+
+          // Slide sparks
+          if (this.isDucking && !this.isJumping && Math.random() < 0.45) {
+            particles.push({
+              x: this.x - 24,
+              y: groundY - 4,
+              vx: -140 - Math.random() * 120,
+              vy: -30 - Math.random() * 60,
+              size: 3 + Math.random() * 3,
+              color: '#ffe600',
+              life: 0.25,
+              maxLife: 0.25
+            });
+          }
+
+          // Calculate panic level from closest ketchup hazard
+          let closestDist = 9999;
+          for (const obs of obstacles) {
+            const dx = obs.x - this.x;
+            if (dx > -40 && dx < closestDist) {
+              closestDist = dx;
+            }
+          }
+          const targetPanic = closestDist < 260 ? Math.max(0, 1 - closestDist / 260) : 0;
+          this.panicLevel += (targetPanic - this.panicLevel) * Math.min(1, dt * 10);
+        }
+      };
+
+      // ==========================================
+      // BACKGROUND PARALLAX ROOM & NEON GRID
+      // ==========================================
+      function initBackground() {
+        bgBuildings = [];
+        for (let i = 0; i < 10; i++) {
+          bgBuildings.push({
+            x: i * 160,
+            w: 110 + (i % 3) * 28,
+            h: 130 + ((i * 47) % 110),
+            type: i % 3 // 0: arcade cab, 1: sim rig silhouette, 2: neon sign tower
+          });
+        }
+      }
+
+      function drawBackground(dt) {
+        // Deep synthwave sky gradient
+        const skyGrad = ctx.createLinearGradient(0, 0, 0, groundY);
+        skyGrad.addColorStop(0, '#0d031c');
+        skyGrad.addColorStop(0.55, '#250947');
+        skyGrad.addColorStop(1, '#4a0e6b');
+        ctx.fillStyle = skyGrad;
+        ctx.fillRect(0, 0, width, groundY);
+
+        // Retro Synthwave Sun
+        const sunX = width * 0.72;
+        const sunY = groundY * 0.44;
+        const sunR = Math.min(width, height) * 0.18;
+        const sunGrad = ctx.createLinearGradient(sunX, sunY - sunR, sunX, sunY + sunR);
+        sunGrad.addColorStop(0, '#ffe600');
+        sunGrad.addColorStop(0.55, '#ff2a85');
+        sunGrad.addColorStop(1, '#9d00ff');
+        ctx.save();
+        ctx.beginPath();
+        ctx.arc(sunX, sunY, sunR, 0, Math.PI * 2);
+        ctx.fillStyle = sunGrad;
+        ctx.fill();
+        // Sun horizontal scanline cutouts
+        ctx.fillStyle = '#250947';
+        for (let i = 1; i <= 5; i++) {
+          const sliceY = sunY + (i * sunR * 0.16);
+          const sliceH = i * 1.6;
+          ctx.fillRect(sunX - sunR, sliceY, sunR * 2, sliceH);
+        }
+        ctx.restore();
+
+        // Parallax Arcade Cabinets & Sim-Racing Silhouettes (matching his room vibe!)
+        const bgSpeed = gameState === 'PLAYING' ? gameSpeed * 0.25 : 35;
+        for (const b of bgBuildings) {
+          b.x -= bgSpeed * dt;
+          if (b.x + b.w < -40) {
+            b.x = width + 60 + Math.random() * 80;
+          }
+          const by = groundY - b.h;
+          ctx.fillStyle = 'rgba(18, 6, 36, 0.85)';
+          ctx.strokeStyle = 'rgba(157, 0, 255, 0.35)';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(b.x, by, b.w, b.h, [10, 10, 0, 0]);
+          ctx.fill();
+          ctx.stroke();
+
+          if (b.type === 0) {
+            // Retro Arcade Screen glow
+            ctx.fillStyle = 'rgba(0, 240, 255, 0.16)';
+            ctx.fillRect(b.x + 16, by + 22, b.w - 32, 38);
+            ctx.fillStyle = '#ff2a85';
+            ctx.fillRect(b.x + 14, by + 8, b.w - 28, 8);
+          } else if (b.type === 1) {
+            // Sim-racing wheel & drum silhouette nod
+            ctx.strokeStyle = 'rgba(255, 42, 133, 0.35)';
+            ctx.lineWidth = 3;
+            ctx.beginPath();
+            ctx.arc(b.x + b.w * 0.5, by + 48, 20, 0, Math.PI * 2);
+            ctx.stroke();
+          } else {
+            // "NO KETCHUP" Neon Warning Sign
+            ctx.save();
+            ctx.strokeStyle = '#ff3b3b';
+            ctx.lineWidth = 2.5;
+            ctx.beginPath();
+            ctx.arc(b.x + b.w * 0.5, by + 44, 18, 0, Math.PI * 2);
+            ctx.moveTo(b.x + b.w * 0.5 - 12, by + 32);
+            ctx.lineTo(b.x + b.w * 0.5 + 12, by + 56);
+            ctx.stroke();
+            ctx.restore();
+          }
+        }
+
+        // Neon Floor / Track
+        const floorGrad = ctx.createLinearGradient(0, groundY, 0, height);
+        floorGrad.addColorStop(0, '#1e083b');
+        floorGrad.addColorStop(1, '#090212');
+        ctx.fillStyle = floorGrad;
+        ctx.fillRect(0, groundY, width, height - groundY);
+
+        // Glowing Neon Horizon Line
+        ctx.strokeStyle = '#00f0ff';
+        ctx.lineWidth = 4;
+        ctx.shadowColor = '#00f0ff';
+        ctx.shadowBlur = 12;
+        ctx.beginPath();
+        ctx.moveTo(0, groundY);
+        ctx.lineTo(width, groundY);
+        ctx.stroke();
+        ctx.shadowBlur = 0;
+
+        // Scrolling Perspective Grid Lines on Floor
+        const gridSpacing = 70;
+        const offset = (distanceTraveled * 1.0) % gridSpacing;
+        ctx.strokeStyle = 'rgba(255, 42, 133, 0.42)';
+        ctx.lineWidth = 2;
+        for (let gx = width + gridSpacing - offset; gx > -gridSpacing; gx -= gridSpacing) {
+          ctx.beginPath();
+          ctx.moveTo(gx, groundY);
+          ctx.lineTo(gx - 48, height);
+          ctx.stroke();
+        }
+        // Horizontal floor line
+        ctx.beginPath();
+        ctx.moveTo(0, groundY + (height - groundY) * 0.48);
+        ctx.lineTo(width, groundY + (height - groundY) * 0.48);
+        ctx.stroke();
+      }
+
+      // ==========================================
+      // DRAW EXPRESSIVE HERO CHARACTER
+      // ==========================================
+      function drawPlayer() {
+        ctx.save();
+        const hb = player.getHitbox();
+
+        // Blink if invulnerable after napkin shield save
+        if (player.invulnTimer > 0 && Math.floor(player.invulnTimer * 16) % 2 === 0) {
+          ctx.globalAlpha = 0.55;
+        }
+
+        // Ground shadow
+        const heightAboveGround = Math.max(0, groundY - player.y);
+        const shadowScale = Math.max(0.35, 1 - heightAboveGround / 260);
+        ctx.fillStyle = 'rgba(0, 0, 0, 0.45)';
+        ctx.beginPath();
+        ctx.ellipse(player.x, groundY + 4, 28 * shadowScale, 7 * shadowScale, 0, 0, Math.PI * 2);
+        ctx.fill();
+
+        const swing = Math.sin(player.runCycle);
+        const bounce = player.isJumping ? 0 : Math.abs(Math.cos(player.runCycle)) * 5;
+
+        if (player.isDucking) {
+          // === SLIDING / DUCKING POSE ===
+          ctx.translate(player.x, player.y - 16);
+
+          // Extended sliding legs (jeans + neon sneakers)
+          ctx.strokeStyle = '#2d3748';
+          ctx.lineWidth = 11;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(-6, 4);
+          ctx.lineTo(32, 8);
+          ctx.stroke();
+
+          // Sneaker
+          ctx.fillStyle = '#00f0ff';
+          ctx.beginPath();
+          ctx.roundRect(26, 0, 16, 11, 4);
+          ctx.fill();
+
+          // Black T-Shirt Torso leaning back
+          ctx.fillStyle = '#141418';
+          ctx.strokeStyle = '#ff2a85';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(-24, -12, 34, 20, 8);
+          ctx.fill();
+          ctx.stroke();
+
+          // Trailing panicked arm
+          ctx.strokeStyle = '#eab38f';
+          ctx.lineWidth = 8;
+          ctx.beginPath();
+          ctx.moveTo(-16, -6);
+          ctx.lineTo(-34, -18 + swing * 4);
+          ctx.stroke();
+
+          // Cropped Real Face Portrait (tilted back in slide!)
+          drawHeroHead(-12, -24, 24, -0.22);
+        } else {
+          // === RUNNING / JUMPING POSE ===
+          ctx.translate(player.x, player.y - bounce);
+
+          // Back Arm
+          ctx.strokeStyle = '#d19875';
+          ctx.lineWidth = 8;
+          ctx.lineCap = 'round';
+          ctx.beginPath();
+          ctx.moveTo(0, -56);
+          ctx.lineTo(-18 * swing, -38 - Math.abs(swing) * 6);
+          ctx.stroke();
+
+          // Back Leg
+          ctx.strokeStyle = '#1e2633';
+          ctx.lineWidth = 10;
+          ctx.beginPath();
+          ctx.moveTo(-2, -32);
+          ctx.lineTo(-16 * swing, -14);
+          ctx.lineTo(-22 * swing - 6, -4);
+          ctx.stroke();
+
+          // Back Sneaker
+          ctx.fillStyle = '#ff2a85';
+          ctx.beginPath();
+          ctx.roundRect(-22 * swing - 10, -8, 16, 8, 3);
+          ctx.fill();
+
+          // Black T-Shirt Torso (matches his black tee in photo)
+          ctx.fillStyle = '#121216';
+          ctx.strokeStyle = '#9d00ff';
+          ctx.lineWidth = 2;
+          ctx.beginPath();
+          ctx.roundRect(-14, -64, 28, 36, 9);
+          ctx.fill();
+          ctx.stroke();
+
+          // Funny mini "NO 🍅" emblem on his black t-shirt
+          ctx.fillStyle = '#e61919';
+          ctx.beginPath();
+          ctx.arc(3, -46, 5, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.strokeStyle = '#fff';
+          ctx.lineWidth = 1.5;
+          ctx.beginPath();
+          ctx.moveTo(-1, -50);
+          ctx.lineTo(7, -42);
+          ctx.stroke();
+
+          // Front Leg
+          ctx.strokeStyle = '#2d3748';
+          ctx.lineWidth = 10;
+          ctx.beginPath();
+          ctx.moveTo(2, -32);
+          ctx.lineTo(18 * swing, -14);
+          ctx.lineTo(22 * swing + 4, -4);
+          ctx.stroke();
+
+          // Front Sneaker
+          ctx.fillStyle = '#00f0ff';
+          ctx.beginPath();
+          ctx.roundRect(22 * swing - 2, -8, 17, 8, 3);
+          ctx.fill();
+
+          // Front Arm (pumping frantically!)
+          ctx.strokeStyle = '#f1b894';
+          ctx.lineWidth = 8;
+          ctx.beginPath();
+          ctx.moveTo(2, -56);
+          ctx.lineTo(18 * swing + 6, -42 - Math.abs(swing) * 8);
+          ctx.stroke();
+
+          // Cropped Real Face Portrait
+          const headTilt = player.isJumping ? -0.12 : (0.08 + swing * 0.06);
+          drawHeroHead(3, -84, 27, headTilt);
+        }
+
+        // Napkin Shield Bubble around player
+        if (player.hasShield) {
+          ctx.save();
+          const pulse = 1 + Math.sin(performance.now() * 0.008) * 0.04;
+          ctx.strokeStyle = '#68d391';
+          ctx.fillStyle = 'rgba(104, 211, 145, 0.14)';
+          ctx.lineWidth = 3;
+          ctx.beginPath();
+          ctx.arc(player.x, player.y - (player.isDucking ? 26 : 52), 54 * pulse, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.stroke();
+          ctx.restore();
+        }
+
+        ctx.restore();
+      }
+
+      function drawHeroHead(hx, hy, radius, tilt) {
+        ctx.save();
+        ctx.translate(hx, hy);
+        ctx.rotate(tilt);
+
+        // Neon rim glow behind his head
+        ctx.shadowColor = player.panicLevel > 0.4 ? '#ff3b3b' : '#ff2a85';
+        ctx.shadowBlur = 14;
+
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.closePath();
+        ctx.clip();
+
+        if (heroImgReady) {
+          // Crop tightly around his bearded face from the uploaded screenshot
+          const iw = heroImg.naturalWidth;
+          const ih = heroImg.naturalHeight;
+          const sx = iw * 0.14;
+          const sy = ih * 0.02;
+          const sw = iw * 0.58;
+          const sh = ih * 0.85;
+          ctx.drawImage(heroImg, sx, sy, sw, sh, -radius, -radius, radius * 2, radius * 2);
+        } else {
+          ctx.drawImage(fallbackCanvas, -radius, -radius, radius * 2, radius * 2);
+        }
+
+        ctx.restore();
+
+        // Crisp Neon Outline around head
+        ctx.save();
+        ctx.translate(hx, hy);
+        ctx.rotate(tilt);
+        ctx.strokeStyle = player.panicLevel > 0.4 ? '#ff4747' : '#00f0ff';
+        ctx.lineWidth = 2.5;
+        ctx.beginPath();
+        ctx.arc(0, 0, radius, 0, Math.PI * 2);
+        ctx.stroke();
+
+        // Flying cartoon sweat drops when ketchup gets close!
+        if (player.panicLevel > 0.35) {
+          ctx.fillStyle = '#00f0ff';
+          const dropOffset = (performance.now() * 0.04) % 12;
+          ctx.beginPath();
+          ctx.arc(-radius - 6 - dropOffset * 0.5, -8 - dropOffset, 3.5, 0, Math.PI * 2);
+          ctx.arc(-radius - 10, 4 - dropOffset * 0.7, 2.8, 0, Math.PI * 2);
+          ctx.fill();
+        }
+        ctx.restore();
+      }
+
+      // ==========================================
+      // OBSTACLES (KETCHUP HAZARDS) & COLLECTIBLES
+      // ==========================================
+      function spawnObstacle() {
+        const difficulty = Math.min(1, score / 4500);
+        const roll = Math.random();
+
+        if (roll < 0.42) {
+          // 1. Ground Ketchup Bottle (Jump over!)
+          const isTall = Math.random() < 0.35 + difficulty * 0.25;
+          obstacles.push({
+            type: 'BOTTLE',
+            x: width + 50,
+            y: groundY,
+            w: isTall ? 34 : 30,
+            h: isTall ? 68 : 50,
+            vx: -gameSpeed,
+            vy: 0,
+            rot: 0,
+            passed: false
+          });
+        } else if (roll < 0.76) {
+          // 2. Head-Height Flying Ketchup Packet (Duck/Slide under or high jump!)
+          obstacles.push({
+            type: 'PACKET',
+            x: width + 50,
+            y: groundY - 56, // Clears ducking player (height 44), hits standing player (height 96)!
+            w: 44,
+            h: 30,
+            vx: -(gameSpeed * 1.16),
+            vy: 0,
+            rot: 0,
+            passed: false
+          });
+        } else {
+          // 3. Bouncing Ketchup Splat Blob (Arcing projectile)
+          obstacles.push({
+            type: 'BLOB',
+            x: width + 50,
+            y: groundY - 120,
+            w: 36,
+            h: 36,
+            vx: -(gameSpeed * 1.05),
+            vy: -220,
+            gravity: 1350,
+            rot: 0,
+            passed: false
+          });
+        }
+      }
+
+      function spawnCollectible() {
+        const roll = Math.random();
+        let kind = 'FRIES';
+        if (roll < 0.16 && !player.hasShield) {
+          kind = 'NAPKIN';
+        } else if (roll < 0.56) {
+          kind = 'MUSTARD';
+        }
+
+        const heightTier = Math.random() < 0.5 ? groundY - 38 : groundY - 115;
+        collectibles.push({
+          kind,
+          x: width + 40,
+          y: heightTier,
+          r: 20,
+          bobPhase: Math.random() * Math.PI * 2
+        });
+      }
+
+      function drawObstacles(dt) {
+        for (let i = obstacles.length - 1; i >= 0; i--) {
+          const obs = obstacles[i];
+          obs.x += obs.vx * dt;
+
+          if (obs.type === 'BLOB') {
+            obs.vy += obs.gravity * dt;
+            obs.y += obs.vy * dt;
+            if (obs.y >= groundY - 18) {
+              obs.y = groundY - 18;
+              obs.vy = -560; // Boing bounce!
+            }
+          }
+
+          // Render Obstacle
+          ctx.save();
+          if (obs.type === 'BOTTLE') {
+            const bx = obs.x - obs.w / 2;
+            const by = obs.y - obs.h;
+            // Bottle glow
+            ctx.shadowColor = '#ff2a2a';
+            ctx.shadowBlur = 12;
+            // Bottle body
+            ctx.fillStyle = '#e61919';
+            ctx.beginPath();
+            ctx.roundRect(bx, by + 16, obs.w, obs.h - 16, 7);
+            ctx.fill();
+            // Neck & white cap
+            ctx.fillStyle = '#cc1010';
+            ctx.fillRect(bx + obs.w * 0.28, by + 6, obs.w * 0.44, 12);
+            ctx.fillStyle = '#ffffff';
+            ctx.fillRect(bx + obs.w * 0.24, by, obs.w * 0.52, 7);
+            // Label
+            ctx.fillStyle = '#fff5f5';
+            ctx.fillRect(bx + 4, by + 26, obs.w - 8, 18);
+            ctx.fillStyle = '#d90000';
+            ctx.font = '900 8px Rubik, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('KETCHUP', obs.x, by + 38);
+          } else if (obs.type === 'PACKET') {
+            const px = obs.x - obs.w / 2;
+            const py = obs.y - obs.h;
+            ctx.translate(obs.x, obs.y - obs.h / 2);
+            ctx.rotate(Math.sin(performance.now() * 0.015) * 0.14);
+            ctx.shadowColor = '#ff3b3b';
+            ctx.shadowBlur = 12;
+            // Foil Ketchup Packet
+            ctx.fillStyle = '#ff2424';
+            ctx.strokeStyle = '#ffffff';
+            ctx.lineWidth = 2;
+            ctx.beginPath();
+            ctx.roundRect(-obs.w / 2, -obs.h / 2, obs.w, obs.h, 4);
+            ctx.fill();
+            ctx.stroke();
+            // Speed lines
+            ctx.strokeStyle = '#ffe600';
+            ctx.beginPath();
+            ctx.moveTo(obs.w / 2 + 4, -6);
+            ctx.lineTo(obs.w / 2 + 18, -6);
+            ctx.moveTo(obs.w / 2 + 4, 6);
+            ctx.lineTo(obs.w / 2 + 14, 6);
+            ctx.stroke();
+            ctx.fillStyle = '#fff';
+            ctx.font = '900 8px Rubik, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('TOMATO', 0, 3);
+          } else if (obs.type === 'BLOB') {
+            ctx.translate(obs.x, obs.y);
+            ctx.shadowColor = '#ff1e1e';
+            ctx.shadowBlur = 14;
+            ctx.fillStyle = '#e61919';
+            ctx.beginPath();
+            ctx.arc(0, 0, 17, 0, Math.PI * 2);
+            ctx.arc(-10, 6, 9, 0, Math.PI * 2);
+            ctx.arc(11, 5, 8, 0, Math.PI * 2);
+            ctx.fill();
+            // Angry cartoon eyes on ketchup monster blob
+            ctx.fillStyle = '#ffe600';
+            ctx.beginPath();
+            ctx.arc(-5, -3, 3, 0, Math.PI * 2);
+            ctx.arc(5, -3, 3, 0, Math.PI * 2);
+            ctx.fill();
+          }
+          ctx.restore();
+
+          // Check Collision with Player (forgiving inner hitbox so grazing edges feels fair)
+          const hb = player.getHitbox();
+          const ox = obs.x - obs.w * 0.34;
+          const oy = obs.type === 'BLOB' ? obs.y - obs.h * 0.34 : obs.y - obs.h + 8;
+          const ow = obs.w * 0.68;
+          const oh = obs.h * 0.72;
+
+          const hit =
+            hb.x < ox + ow &&
+            hb.x + hb.w > ox &&
+            hb.y < oy + oh &&
+            hb.y + hb.h > oy;
+
+          if (hit && player.invulnTimer <= 0) {
+            if (player.hasShield) {
+              // Napkin Shield saves him!
+              SFX.shieldBlock();
+              player.hasShield = false;
+              player.invulnTimer = 1.2;
+              shieldHud.style.display = 'none';
+              triggerShake(0.25, 9);
+              addFloatingText(player.x, player.y - 90, 'WIPED CLEAN! SHIELD SAVED!', '#68d391');
+              spawnBurst(obs.x, obs.y - 20, '#ffffff', 18);
+              obstacles.splice(i, 1);
+              continue;
+            } else {
+              // Deduct 1 life
+              lives = Math.max(0, lives - 1);
+              combo = 1;
+              comboTimer = 0;
+              updateLivesUI();
+              obstacles.splice(i, 1);
+
+              if (lives > 0) {
+                SFX.loseLife();
+                player.invulnTimer = 1.6;
+                triggerShake(0.32, 10);
+                addFloatingText(player.x, player.y - 95, 'YUCK! -1 LIFE', '#ff4747');
+                spawnBurst(obs.x, obs.y - 24, '#e61919', 22);
+                continue;
+              } else {
+                triggerGameOver(obs.type);
+                return;
+              }
+            }
+          }
+
+          // Close Call / Dodge Bonus
+          if (!obs.passed && obs.x + obs.w / 2 < hb.x) {
+            obs.passed = true;
+            const distY = Math.abs((hb.y + hb.h / 2) - (oy + oh / 2));
+            if (distY < 75) {
+              combo = Math.min(10, combo + 1);
+              comboTimer = 3.2;
+              const bonus = 50 * combo;
+              score += bonus;
+              addFloatingText(player.x + 20, player.y - 105, `DODGED! +${bonus}`, '#00f0ff');
+            }
+          }
+
+          if (obs.x < -80) {
+            obstacles.splice(i, 1);
+          }
+        }
+      }
+
+      function drawCollectibles(dt) {
+        for (let i = collectibles.length - 1; i >= 0; i--) {
+          const item = collectibles[i];
+          item.x -= gameSpeed * dt;
+          item.bobPhase += dt * 5;
+          const drawY = item.y + Math.sin(item.bobPhase) * 6;
+
+          ctx.save();
+          ctx.translate(item.x, drawY);
+          ctx.shadowBlur = 14;
+
+          if (item.kind === 'FRIES') {
+            ctx.shadowColor = '#ffe600';
+            // Yellow fries sticking out of purple carton
+            ctx.fillStyle = '#ffe600';
+            ctx.fillRect(-10, -16, 4, 16);
+            ctx.fillRect(-4, -19, 4, 18);
+            ctx.fillRect(2, -17, 4, 16);
+            ctx.fillRect(7, -14, 4, 14);
+            // Carton (purple so it's NOT ketchup red!)
+            ctx.fillStyle = '#9d00ff';
+            ctx.beginPath();
+            ctx.roundRect(-13, -4, 26, 20, 4);
+            ctx.fill();
+          } else if (item.kind === 'MUSTARD') {
+            ctx.shadowColor = '#ffe600';
+            ctx.fillStyle = '#ffd000';
+            ctx.beginPath();
+            ctx.roundRect(-10, -10, 20, 26, 6);
+            ctx.fill();
+            // Nozzle
+            ctx.beginPath();
+            ctx.moveTo(-4, -10);
+            ctx.lineTo(0, -19);
+            ctx.lineTo(4, -10);
+            ctx.fill();
+          } else if (item.kind === 'NAPKIN') {
+            ctx.shadowColor = '#68d391';
+            // Paper towel / Napkin Shield Roll
+            ctx.fillStyle = '#ffffff';
+            ctx.beginPath();
+            ctx.roundRect(-12, -14, 24, 28, 5);
+            ctx.fill();
+            ctx.fillStyle = '#a0aec0';
+            ctx.beginPath();
+            ctx.ellipse(0, -14, 12, 4, 0, 0, Math.PI * 2);
+            ctx.fill();
+            ctx.fillStyle = '#48bb78';
+            ctx.font = '900 8px Rubik, sans-serif';
+            ctx.textAlign = 'center';
+            ctx.fillText('SHIELD', 0, 4);
+          }
+          ctx.restore();
+
+          // Pickup Collision
+          const hb = player.getHitbox();
+          const cx = hb.x + hb.w / 2;
+          const cy = hb.y + hb.h / 2;
+          const dist = Math.hypot(item.x - cx, drawY - cy);
+
+          if (dist < 46) {
+            if (item.kind === 'NAPKIN') {
+              SFX.collectShield();
+              player.hasShield = true;
+              shieldHud.style.display = 'flex';
+              addFloatingText(item.x, drawY - 15, 'NAPKIN SHIELD!', '#68d391');
+              spawnBurst(item.x, drawY, '#68d391', 16);
+            } else {
+              SFX.collectSnack();
+              combo = Math.min(10, combo + 1);
+              comboTimer = 3.5;
+              const pts = (item.kind === 'FRIES' ? 150 : 100) * combo;
+              score += pts;
+              const label = item.kind === 'FRIES' ? `PLAIN FRIES! +${pts}` : `MUSTARD! +${pts}`;
+              addFloatingText(item.x, drawY - 15, label, '#ffe600');
+              spawnBurst(item.x, drawY, '#ffe600', 14);
+            }
+            collectibles.splice(i, 1);
+            continue;
+          }
+
+          if (item.x < -50) {
+            collectibles.splice(i, 1);
+          }
+        }
+      }
+
+      // ==========================================
+      // PARTICLES & FLOATING TEXT JUICE
+      // ==========================================
+      function spawnBurst(x, y, color, count) {
+        for (let i = 0; i < count; i++) {
+          const angle = Math.random() * Math.PI * 2;
+          const speed = 70 + Math.random() * 240;
+          particles.push({
+            x,
+            y,
+            vx: Math.cos(angle) * speed,
+            vy: Math.sin(angle) * speed - 60,
+            size: 3 + Math.random() * 5,
+            color,
+            life: 0.45 + Math.random() * 0.25,
+            maxLife: 0.7
+          });
+        }
+      }
+
+      function addFloatingText(x, y, text, color) {
+        floatingTexts.push({
+          x,
+          y,
+          text,
+          color,
+          life: 0.95
+        });
+      }
+
+      function updateAndDrawEffects(dt) {
+        // Particles
+        for (let i = particles.length - 1; i >= 0; i--) {
+          const p = particles[i];
+          p.x += p.vx * dt;
+          p.y += p.vy * dt;
+          p.vy += 450 * dt;
+          p.life -= dt;
+          if (p.life <= 0) {
+            particles.splice(i, 1);
+            continue;
+          }
+          ctx.save();
+          ctx.globalAlpha = Math.max(0, p.life / p.maxLife);
+          ctx.fillStyle = p.color;
+          ctx.beginPath();
+          ctx.arc(p.x, p.y, p.size, 0, Math.PI * 2);
+          ctx.fill();
+          ctx.restore();
+        }
+
+        // Floating Texts
+        for (let i = floatingTexts.length - 1; i >= 0; i--) {
+          const ft = floatingTexts[i];
+          ft.y -= 48 * dt;
+          ft.life -= dt;
+          if (ft.life <= 0) {
+            floatingTexts.splice(i, 1);
+            continue;
+          }
+          ctx.save();
+          ctx.globalAlpha = Math.min(1, ft.life * 1.5);
+          ctx.font = '900 14px "Press Start 2P", monospace';
+          ctx.textAlign = 'center';
+          ctx.fillStyle = '#000';
+          ctx.fillText(ft.text, ft.x + 2, ft.y + 2);
+          ctx.fillStyle = ft.color;
+          ctx.fillText(ft.text, ft.x, ft.y);
+          ctx.restore();
+        }
+      }
+
+      function triggerShake(duration, intensity) {
+        shakeTime = duration;
+        shakeIntensity = intensity;
+      }
+
+      // ==========================================
+      // GAME FLOW (START / GAME OVER)
+      // ==========================================
+      function startGame() {
+        killAllAudio();
+        ensureAudio();
+        gameState = 'PLAYING';
+        lives = maxLives;
+        updateLivesUI();
+        score = 0;
+        combo = 1;
+        comboTimer = 0;
+        gameSpeed = 300;
+        distanceTraveled = 0;
+        obstacles = [];
+        collectibles = [];
+        particles = [];
+        floatingTexts = [];
+        spawnTimer = 1.35;
+        collectibleTimer = 1.5;
+
+        player.y = groundY;
+        player.vy = 0;
+        player.isJumping = false;
+        player.isDucking = false;
+        player.jumpsUsed = 0;
+        player.hasShield = false;
+        player.invulnTimer = 0;
+        shieldHud.style.display = 'none';
+
+        startScreen.classList.add('hidden');
+        gameOverScreen.classList.add('hidden');
+      }
+
+      function triggerGameOver(obstacleType) {
+        SFX.gameOver();
+        gameState = 'GAMEOVER';
+        triggerShake(0.42, 12);
+        spawnBurst(player.x, player.y - 50, '#e61919', 36);
+
+        const finalPts = Math.floor(score);
+        if (finalPts > highScore) {
+          highScore = finalPts;
+          localStorage.setItem('ketchup_dodger_best', String(highScore));
+          bestDisplay.textContent = String(highScore).padStart(5, '0');
+        }
+
+        finalScoreEl.textContent = finalPts;
+        finalBestEl.textContent = highScore;
+
+        const reasons = {
+          BOTTLE: ['TRIPPED ON A KETCHUP BOTTLE!', '"WHO LEAVES TOMATO GOOP ON THE FLOOR?!"'],
+          PACKET: ['HIT BY A FLYING KETCHUP PACKET!', '"IT SQUIRTED EVERYWHERE! DISGUSTING!"'],
+          BLOB: ['AMBUSHED BY A KETCHUP MONSTER!', '"GET A HOSE! GET IT OFF ME RIGHT NOW!"']
+        };
+        const [title, quote] = reasons[obstacleType] || reasons.BOTTLE;
+        gameOverReasonEl.textContent = title;
+        gameOverQuoteEl.textContent = quote;
+
+        setTimeout(() => {
+          gameOverScreen.classList.remove('hidden');
+        }, 380);
+      }
+
+      // ==========================================
+      // MAIN ANIMATION LOOP
+      // ==========================================
+      function gameLoop(timestamp) {
+        if (!lastTime) lastTime = timestamp;
+        const dt = Math.min(0.05, (timestamp - lastTime) / 1000);
+        lastTime = timestamp;
+
+        ctx.save();
+        if (shakeTime > 0) {
+          shakeTime -= dt;
+          const sx = (Math.random() - 0.5) * shakeIntensity * 2;
+          const sy = (Math.random() - 0.5) * shakeIntensity * 2;
+          ctx.translate(sx, sy);
+        }
+
+        if (gameState === 'PLAYING') {
+          // Gentle difficulty curve: starts slow and ramps smoothly over time
+          gameSpeed = Math.min(760, gameSpeed + dt * 5.5);
+          distanceTraveled += gameSpeed * dt;
+          score += dt * 28 * (1 + (combo - 1) * 0.15);
+
+          if (comboTimer > 0) {
+            comboTimer -= dt;
+            if (comboTimer <= 0) {
+              combo = 1;
+            }
+          }
+
+          // Spawn Ketchup Obstacles with generous early spacing
+          spawnTimer -= dt;
+          if (spawnTimer <= 0) {
+            spawnObstacle();
+            const minGap = Math.max(0.95, 1.85 - (gameSpeed - 300) * 0.0018);
+            spawnTimer = minGap + Math.random() * 0.65;
+          }
+
+          // Spawn Collectibles (Fries, Mustard, Napkin Shield)
+          collectibleTimer -= dt;
+          if (collectibleTimer <= 0) {
+            spawnCollectible();
+            collectibleTimer = 2.0 + Math.random() * 1.4;
+          }
+
+          player.update(dt);
+        }
+
+        drawBackground(dt);
+        if (gameState === 'PLAYING' || gameState === 'GAMEOVER') {
+          drawCollectibles(gameState === 'PLAYING' ? dt : 0);
+          drawObstacles(gameState === 'PLAYING' ? dt : 0);
+        }
+        drawPlayer();
+        updateAndDrawEffects(dt);
+        ctx.restore();
+
+        // Update HUD Text
+        scoreDisplay.textContent = String(Math.floor(score)).padStart(5, '0');
+        comboDisplay.textContent = `x${combo}`;
+
+        requestAnimationFrame(gameLoop);
+      }
+
+      // ==========================================
+      // INPUT HANDLERS (KEYBOARD, MOUSE & TOUCH)
+      // ==========================================
+      window.addEventListener('keydown', (e) => {
+        if (e.code === 'KeyM' && !e.repeat) {
+          toggleMute();
+          return;
+        }
+        if (['Space', 'ArrowUp', 'ArrowDown', 'KeyW', 'KeyS'].includes(e.code)) {
+          e.preventDefault();
+        }
+        if (gameState === 'START' && (e.code === 'Space' || e.code === 'Enter')) {
+          startGame();
+          return;
+        }
+        if (gameState === 'GAMEOVER' && (e.code === 'Space' || e.code === 'Enter')) {
+          startGame();
+          return;
+        }
+        if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+          if (!e.repeat) {
+            btnJump.classList.add('pressed');
+            player.jump();
+          }
+        }
+        if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+          btnDuck.classList.add('pressed');
+          player.setDuck(true);
+        }
+      });
+
+      window.addEventListener('keyup', (e) => {
+        if (e.code === 'Space' || e.code === 'ArrowUp' || e.code === 'KeyW') {
+          btnJump.classList.remove('pressed');
+        }
+        if (e.code === 'ArrowDown' || e.code === 'KeyS') {
+          btnDuck.classList.remove('pressed');
+          player.setDuck(false);
+        }
+      });
+
+      // On-Screen Arcade Button Controls (Mouse & Touch)
+      const bindHoldButton = (el, onDown, onUp) => {
+        el.addEventListener('pointerdown', (e) => {
+          e.preventDefault();
+          el.classList.add('pressed');
+          onDown();
+        });
+        const release = (e) => {
+          e.preventDefault();
+          el.classList.remove('pressed');
+          if (onUp) onUp();
+        };
+        el.addEventListener('pointerup', release);
+        el.addEventListener('pointerleave', release);
+        el.addEventListener('pointercancel', release);
+      };
+
+      bindHoldButton(btnJump, () => player.jump(), null);
+      bindHoldButton(btnDuck, () => player.setDuck(true), () => player.setDuck(false));
+
+      // Swipe / Tap directly on Canvas for Mobile
+      let touchStartY = null;
+      canvas.addEventListener('touchstart', (e) => {
+        if (gameState !== 'PLAYING') return;
+        touchStartY = e.touches[0].clientY;
+      }, { passive: true });
+
+      canvas.addEventListener('touchmove', (e) => {
+        if (gameState !== 'PLAYING' || touchStartY === null) return;
+        const dy = e.touches[0].clientY - touchStartY;
+        if (dy > 26) {
+          player.setDuck(true);
+        } else if (dy < -24) {
+          player.setDuck(false);
+          player.jump();
+          touchStartY = e.touches[0].clientY;
+        }
+      }, { passive: true });
+
+      canvas.addEventListener('touchend', () => {
+        if (touchStartY !== null) {
+          player.setDuck(false);
+          touchStartY = null;
+        }
+      });
+
+      canvas.addEventListener('mousedown', () => {
+        if (gameState === 'PLAYING') player.jump();
+      });
+
+      startBtn.addEventListener('click', startGame);
+      restartBtn.addEventListener('click', startGame);
+
+      // Initialize on Window Load
+      window.onload = function () {
+        resizeCanvas();
+        initBackground();
+        player.y = groundY;
+        requestAnimationFrame(gameLoop);
+      };
+    })();
+  </script>
+</body>
+</html>
